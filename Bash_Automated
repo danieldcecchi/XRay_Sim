@@ -1,0 +1,46 @@
+#!/bin/bash
+
+echo What is the maximum distance from source you would like?
+
+read max_distance
+
+#echo What is the energy of the X-Ray you would like in keV? 
+
+#read energy
+e = keV
+
+d = 1 #start of the distance
+ext = .0 #Don't worry about it
+unit = cm #units for the file names
+
+while [$d -le max_distance]
+do 
+
+	cp 120keVBaseFile.egsinp 120keV$d$unit.egsinp
+#Reads the 6th line from the top of the file and stores into 'line'
+	line=$(cat 120keV$d$unit.egsinp | head -6 | tail -1)
+
+#creates a variable that will replace the current distance
+	opd=$d$ext
+
+##creates a new line with opd in the place of the current distance
+	new_line=$(echo $line | sed "s/distance/$opd/g")
+
+#replaces the line in the old file with the new line with the new distance
+	sed -i -e "6s/.*/$new_line/" 120keV$d$unit.egsinp	
+
+#runs the new file and stores into a file that is named with the correct distance
+	ex dosxyznrc 120keV$d$unit microCT516kV > 120keV$d$unit &
+
+#copies the 3ddose file to a text document to be used in python to generate the plot 
+	cp 120keV$d$unit.3ddose 120keV$d$unit.txt
+	
+#moves file to directory accessible by python
+	mv 120keV$d$unit.txt /Users/danieldcecchi/code/xray_sim/DataFiles
+done
+
+cd ~
+cd code/xray_sim/xray_sim
+
+
+python Scintillator_Dose_Analysis.py max_distance 
