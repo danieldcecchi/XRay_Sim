@@ -10,6 +10,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 import os
+import re
+
 
 #pulls the raw data to create the scintillator
 
@@ -63,9 +65,9 @@ def scintillator(raw_data_scint,input_file):
 
 
 if __name__ == "__main__":
-    #max_distance = sys.argv[1]
-    directory = '../DataFiles/'
-    raw_data_scint = np.loadtxt(directory + 'scintillator.txt', dtype = 'str',skiprows = 12,max_rows = 420,usecols = 0)
+    max_distance = int(sys.argv[1])
+    directory = '/Users/danieldcecchi/code/xray_sim/DataFiles/'
+    raw_data_scint = np.loadtxt('scintillator.txt', dtype = 'str',skiprows = 12,max_rows = 420,usecols = 0)
     input_files = []
     dose_at_d = []
     for filename in os.listdir(directory):
@@ -73,14 +75,15 @@ if __name__ == "__main__":
             input_files.append(directory + filename)
         else:
             continue
-    input_files = sorted(input_files)
+    input_files.sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
     for i in input_files:
         dose = scintillator(raw_data_scint, i)
         dose_at_d.append(dose)
-    distances = [i for i in range(1,3)]
+    distances = [i for i in range(1,max_distance + 1)]
     plt.plot(distances, dose_at_d)
     plt.xlabel('Distance From X-Ray Source [cm]')
     plt.ylabel('Measured Dose [units]')
+    plt.title('Dosage vs. Distance')
     plt.show()
 
 
