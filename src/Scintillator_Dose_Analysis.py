@@ -8,9 +8,8 @@ Created on Thu Oct 10 14:43:04 2019
 
 import numpy as np
 import matplotlib.pyplot as plt
-import sys
 import os
-
+import sys
 
 #pulls the raw data to create the scintillator
 
@@ -23,16 +22,17 @@ def scintillator(raw_data_scint,input_file):
             matrix1 = np.vstack((r,matrix1))
         except NameError:
             matrix1 = r
-    
-    n = 20
+
+    #Creates a 3D array of the scintillator
+    n = 40
     n_matrices = int(raw_data_scint.shape[0] / n)
-    scint = matrix1.reshape(n,n,n_matrices)
-    
-    #finds the location of all the '3's
-    threelocs = np.argwhere(scint == 3)
+    scint = matrix1.reshape(n,n_matrices,n)
+    scint = np.flip(scint,1)
+    # #finds the location of all the '2's
+    twolocs = np.argwhere(scint == 2)
+
     #[matrix,row,column]
-    
-    #Grabs the dose data and puts into a 3 by 3 array.
+    # #Grabs the dose data and puts into a 3 by 3 array.
     raw_data_dose = open(input_file)
     lines =  raw_data_dose.readlines()
     a = []
@@ -43,36 +43,44 @@ def scintillator(raw_data_scint,input_file):
     
         b[j] = a
         j+=1
-    
+
+    #grabs dose and uncertainty data
     dose_column = np.array(b[4])
-    
-    dose_data = dose_column.reshape(n,n,n)
-    
+    unc_column = np.array(b[5])
+
+    for i in range(len(dose_column)):
+        unc_column[i] = unc_column[i]*dose_column[i]
+    dose_data = dose_column.reshape(n,n_matrices,n)
+    unc_data = unc_column.reshape(n,n_matrices,n)
     dose_scint = []
-    
-    for i in range(len(threelocs)):
-        dose_scint.append(dose_data[threelocs[i][0]][threelocs[i][1]][threelocs[i][2]])
+    unc_scint = []
+    for i in range(len(twolocs)):
+        dose_scint.append(dose_data[twolocs[i][0]][twolocs[i][1]][twolocs[i][2]])
+
+
+    for i in range(len(twolocs)):
+        unc_scint.append(unc_data[twolocs[i][0]][twolocs[i][1]][twolocs[i][2]])
 
     avgdose = np.mean(dose_scint)
+    avgunc = np.mean(unc_scint)
 
     #print('The mean dose measured by the scintillator is: ' + str(avgdose))
 
-    return avgdose
-
-
+    return avgdose, avgunc
 
 
 
 if __name__ == "__main__":
-    directory = '/Users/danieldcecchi/code/xray_sim/DataFiles/'
-    raw_data_scint = np.loadtxt(directory + 'scintillator.txt', dtype = 'str',skiprows = 12,max_rows = 420,usecols = 0)
+    directory = '/Users/danieldcecchi/2019fallresearch/xray_sim/DataFiles/'
+    raw_data_scint = np.loadtxt(directory + 'scintillator_new.txt', dtype = 'str', \
+                                skiprows = 16,max_rows = 160,usecols = 0)
     input_files = []
-    emax = int(sys.argv[3])
-    emin = int(sys.argv[2])
-    steps = int(sys.argv[4])
+    emax = 120
+    emin = 80
+    steps = 20
     nrgrange = [i for i in range(emin,emax+steps,steps)]
     #puts all the files into a list
-
+    
     for i in range(emin,emax+steps,steps):
         for filename in os.listdir(directory):
             if f'{i}keV' in filename:
@@ -80,46 +88,67 @@ if __name__ == "__main__":
             else:
                 continue
         emin+=steps
-    m = int(len(input_files)/3)
+
+    m = int(len(input_files)/(3))
     n = int(len(nrgrange))
     data_files = [[0] * m for i in range(n)]
     nrg_index = 0
     dose_at_d = [[0] * m for i in range(n)]
+    unc_at_d = [[0] * m for i in range(n)]
     #filters the list so that it creates a new list for each specific energy
-    for j in range(emin,emax + steps,steps):
+    for j in range(80,140,20):
         d_index = 0
+    
         for i in range(len(input_files)):
             if f'{j}' in input_files[i]:
                 data_files[nrg_index][d_index] = input_files[i]
+    
                 d_index+=1
             else:
                 continue
         nrg_index +=1
-    dose_index=0
-    max_distance = 10
-    for i in range(int(n)):
     
+    dose_index=0
+    max_distance = 1
+    # max_distance = float(max_distance)
+    # if max_distance < 1:
+    #     max_distance = int(float(str(max_distance-int(max_distance))[-1:]))
+    # else:
+    #     max_distance = int(max_distance)
+
+    for i in range(n):
+
         data_files[i].sort(key=lambda f: int(''.join(filter(str.isdigit, f))))
         for j in range(max_distance):
-            dose = scintillator(raw_data_scint,data_files[i][j])
+            dose, uncertainty = scintillator(raw_data_scint,data_files[i][j])
             dose_at_d[i][j] = dose
-
+            unc_at_d[i][j] = uncertainty
+    dose_at_d = np.array(dose_at_d)
+    unc_at_d = np.array(unc_at_d)/np.sqrt(316)
     distances = [i for i in range(1,max_distance + 1)]
-    for i in range(n):
-        plt.plot(distances,dose_at_d[i],label=f'{nrgrange[i]}keV')
-    # plt.plot(distances, dose_at_d[0],label='80keV')
-    # plt.plot(distances,dose_at_d[1],label='100keV')
-    # plt.plot(distances,dose_at_d[2],label='120keV')
-    plt.xlabel('Distance From X-Ray Source [cm]')
-    plt.ylabel('Measured Dose [units]')
-    plt.title('Dosage vs. Distance')
-    plt.legend(loc='best')
+
+    plt.plot(nrgrange,dose_at_d,'o',label='Energy')
+    for i in range(len(dose_at_d)):
+        plt.text(nrgrange[i],dose_at_d[i], f'{dose_at_d[i]}')
+    
+    plt.errorbar(nrgrange,dose_at_d, yerr = unc_at_d,capsize = 10,barsabove = True,fmt = 'none',label = 'Error')
+    plt.xlabel('Energy [KeV]')
+    plt.ylabel('Dose')
+    plt.legend()
     plt.show()
 
 
+    # un-comment here if you want a Dose vs Distance graph.
+    # distances = [i for i in range(1,max_distance + 1)]
+    # for i in range(n):
+    #     plt.plot(distances,dose_at_d[i],label=f'{nrgrange[i]}keV',marker = '.')
+    #     plt.errorbar(distances,dose_at_d[i], yerr = unc_at_d[i],capsize = 10,barsabove = True,fmt = 'none',label = 'Error')
 
-
-
+    # plt.xlabel('Distance From X-Ray Source [cm]')
+    # plt.ylabel('Measured Dose [units]')
+    # plt.title('Dosage vs. Distance')
+    # plt.legend(loc='best')
+    # plt.show()
 
 
 
