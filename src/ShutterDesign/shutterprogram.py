@@ -21,7 +21,7 @@ from datetime import datetime
 
 '''Directory is where the diagnostics page saves its information once you quit the program.
 You can change it to your own. '''
-directory = '/Users/danieldcecchi/2019Fallresearch/Sample_Diagnostics'
+#directory = '/Users/danieldcecchi/2019Fallresearch/Sample_Diagnostics'
 
 
 
@@ -32,17 +32,18 @@ FPress = False
 HPress = False
 SPress = False
 EPress = False
-
+JDPress = False
+JCPress = False
 
 '''Grabs the current time without the month or the year'''
-now = datetime.now()
+start = datetime.now()
 
 '''Grabs the date and write it to the diagnostics text file'''
 today = date.today()
 output = f"{today}" + ".txt"
-path = os.path.join(directory, output)
-with open(path, 'w') as f:
-    f.write('Diagnostic Data: ' + "\n")
+#path = os.path.join(directory, output)
+#with open(path, 'w') as f:
+    #f.write('Diagnostic Data: ' + "\n" + f'Current Time is: {start}')
 
 
 
@@ -136,11 +137,26 @@ class Application(Tk):
 #        Button(self.nb.page1, text = 'Enter CP#', command = self.comportnumber, \
 #               activeforeground = 'Yellow',highlightthickness = 0).place(relx = 0.2, rely = \
 #                                                                 0.4)
+        '''Button to have the shutter sit over top of the scintillator indefinitely. Mainly will be
+        used for spectrum acquisitions.'''
 
+        label4 = ttk.Label(self.nb.page1, text = 'JOGD Entry')
+        label4.place(relx = 0.5,rely = 0.35,anchor = CENTER)
+
+        JOGD = Button(self.nb.page1,text='Enter JOGD',command = self.jogd,activeforeground = 'Yellow', \
+               highlightthickness = 0, relief ='ridge', width = 10, height = 3, bd = 0)
+        JOGD.place(relx = 0.5, rely = 0.5,anchor = CENTER)
+
+        JOGC = Button(self.nb.page1,text='JOGC',command = self.jogc,activeforeground = 'Yellow', \
+               highlightthickness = 0, relief ='ridge', width = 10, height = 3, bd = 0)
+        JOGC.place(relx = 0.5, rely = 0.6,anchor = CENTER)
+
+        self.entryJOGD = Entry(self.nb.page1)
+        self.entryJOGD.place(relx = 0.5,rely = 0.4,anchor = CENTER)
 
         '''Button to HOME Shutter'''
         home = Button(self.nb.page1,text = 'HOME',command = self.home, activeforeground = 'Yellow', \
-               highlightthickness = 0, relief = 'ridge',width = 10, height = 3)
+               highlightthickness = 0, relief = 'ridge',width = 10, height = 3,bd = 0)
         home.place(relx = 1,rely = 0.25, anchor = E)
         home.config(font = ("Courier",15))
         
@@ -161,16 +177,20 @@ class Application(Tk):
         thread.start()
         
     def run(self):
+        self.T.insert(END,'\n')
         while True: 
-            if f"{self.shutterclass.Process()}" != "None":
-                self.T.insert(END,"\n" + f"{self.shutterclass.Process()}")
+            #if self.shutterclass.Process() == None:
+                #pass
+            if self.shutterclass.Process() != '' and f"{self.shutterclass.GetStatusMsg}":
+                self.T.insert(END,f"{self.shutterclass.GetStatusMsg()}")
             t.sleep(0.25)
-        
+
+
         
         
     def home(self):
         HPress = True
-        self.isclicked(FPress,HPress,QBPress,SPress,EPress)
+        self.isclicked(FPress,HPress,QBPress,SPress,EPress,JDPress,JCPress)
 
     def connect(self):
         '''Prints out first status message when program connects'''
@@ -180,11 +200,11 @@ class Application(Tk):
 
     def fire(self):
         FPress = True
-        self.isclicked(FPress,HPress,QBPress,SPress,EPress)
+        self.isclicked(FPress,HPress,QBPress,SPress,EPress,JDPress,JCPress)
 
     def exposuretime(self):
         EPress = True
-        self.isclicked(FPress,HPress,QBPress,SPress,EPress)
+        self.isclicked(FPress,HPress,QBPress,SPress,EPress,JDPress,JCPress)
         # if self.entry.get() != '':
         #     self.shutterclass.Process(command = 'TEXP', parameter = int(self.entry.get()))
         #     self.T.insert(END,"\n" + f"{self.shutterclass.GetStatusMsg()}")
@@ -196,16 +216,23 @@ class Application(Tk):
         #print( self.exptime.get() )
         #print(self.comport.get())
 
+    def jogd(self):
+        JDPress = True
+        self.isclicked(FPress,HPress,QBPress,SPress,EPress,JDPress,JCPress)
+
+    def jogc(self):
+        JCPress = True
+        self.isclicked(FPress,HPress,QBPress,SPress,EPress,JDPress,JCPress)
 
     def stop(self):
         SPress = True
-        self.isclicked(FPress,HPress,QBPress,SPress,EPress)
+        self.isclicked(FPress,HPress,QBPress,SPress,EPress,JDPress,JCPress)
     
     def function_end(self):
 
         """called when the user quits the program"""
         QBPress = True
-        self.isclicked(FPress,HPress,QBPress,SPress,EPress)
+        self.isclicked(FPress,HPress,QBPress,SPress,EPress,JDPress,JCPress)
 
 
     def time_of_year(self):
@@ -217,9 +244,10 @@ class Application(Tk):
         '''Finds the time of day to show special messages'''
 
         
-    def isclicked(self,FPress,HPress,QBPress,SPress,EPress):
+    def isclicked(self,FPress,HPress,QBPress,SPress,EPress,JDPress,JCPress):
         '''Function to tell if a button is pressed.'''
         if FPress == True:
+            now = datetime.now()
             
             self.shutterclass.Process(command = 'FIRE')
             self.T.insert(END,"\n" + now.strftime("%H:%M:%S"))
@@ -227,28 +255,43 @@ class Application(Tk):
             self.stopbutton['state'] = NORMAL
         
         elif QBPress == True:
+            now = datetime.now()
             self.T.insert(END,"\n" + now.strftime("%H:%M:%S"))
             #if messagebox.askokcancel("Quit", "You're Done? *sniff* "):
-                #input = self.T.get("1.0", END)
-                #with open(path, 'a') as f:
-                    #f.write(input)
+            input = self.T.get("1.0", END)
+            with open(path, 'a') as f:
+                f.write(input)
             self.destroy()
         elif HPress == True:
+            now = datetime.now()
             self.T.insert(END,"\n" + now.strftime("%H:%M:%S"))
             self.shutterclass.Process(command = 'HOME')
             self.T.insert(END,"\n" + f"{self.shutterclass.GetStatusMsg()}")
             
         elif SPress == True:
+            now = datetime.now()
             self.T.insert(END,"\n" + now.strftime("%H:%M:%S"))
             self.shutterclass.Process(command = 'STOP')
             self.T.insert(END,'\n' + f'{self.shutterclass.GetStatusMsg()}')   
         elif EPress == True:
+            now = datetime.now()
             self.T.insert(END,"\n" + now.strftime("%H:%M:%S"))
             if self.entry.get() != '':
                 self.shutterclass.Process(command = 'TEXP', parameter = float(self.entry.get()))
                 self.T.insert(END,"\n" + f"{self.shutterclass.GetStatusMsg()}")
-              
-    
+        elif JDPress == True:
+            now = datetime.now()
+            
+            self.shutterclass.Process(command = 'JOGD', parameter = float(self.entryJOGD.get()))
+            self.T.insert(END,"\n" + now.strftime("%H:%M:%S"))
+            self.T.insert(END, "\n" + f"{self.shutterclass.GetStatusMsg()}")
+            
+        elif JCPress == True:
+            now = datetime.now()
+            
+            self.shutterclass.Process(command = 'JOGC')
+            self.T.insert(END,"\n" + now.strftime("%H:%M:%S"))
+            self.T.insert(END, "\n" + f"{self.shutterclass.GetStatusMsg()}")        
 
 class PopUp(Tk):
 
@@ -269,7 +312,7 @@ class PopUp(Tk):
 
 if __name__ == '__main__':
 
-    #By default, set port to 1 just because.
+    #By default, set port to 1 just because. This will need to be changed though. 
     port = '1'
     shutterclass = Shutter(port)
     #window = PopUp()
